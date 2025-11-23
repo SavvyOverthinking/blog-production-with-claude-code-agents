@@ -1,0 +1,5 @@
+# This directory holds article concept briefs
+
+Structure:
+- templates/ - Brief templates for different article types
+- briefs/ - Active article briefs ready for production

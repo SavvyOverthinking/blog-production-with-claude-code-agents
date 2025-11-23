@@ -41,46 +41,92 @@ Then run production workflow.
 
 ## Initial User Interaction
 
-When user starts production with `@orchestrator start`, ask these questions:
+When user starts production with `@orchestrator start`, use AskUserQuestion tool for setup:
 
 ### Question 1: Voice Selection
+
+**Action**: Use AskUserQuestion to present voice profile picker
+
+1. Scan `my-voice/` directory for .md files (exclude README.md)
+2. For each voice profile, read first 200 characters to extract description
+3. Present options using AskUserQuestion:
+
 ```
-🎭 Which voice profile should I use?
-
-Available voices in my-voice/:
-[List all .md files in my-voice/ directory]
-
-> Enter voice name:
-```
-
-### Question 2: Brief
-```
-📝 Provide your article concept
-
-Options:
-1. Paste a brief from an existing file (provide path)
-2. Paste your concept directly
-3. I have rough ideas (I'll help extract them)
-
-> Choice (1-3):
+Use AskUserQuestion with:
+- question: "Which voice profile should I use for this article?"
+- header: "Voice"
+- multiSelect: false
+- options: [array of voice profiles with descriptions]
 ```
 
-**If choice 1**: Ask for file path, read it
-**If choice 2**: Accept multi-line input, save to `concepts/{slug}-brief.md`
-**If choice 3**: Act as interrogator immediately with interactive questions
+**If no voice profiles exist**:
+```
+❌ No voice profiles found in my-voice/
+
+First, extract a voice profile:
+cd voice_extractor
+python main.py <blog-url> --name <voice-name> --articles 10
+
+Then run @orchestrator start
+```
+
+### Question 2: Brief Input Method
+
+**Action**: Use AskUserQuestion to present brief input options
+
+```
+Use AskUserQuestion with:
+- question: "How would you like to provide the article brief?"
+- header: "Brief Source"
+- multiSelect: false
+- options:
+  1. "Load from concepts/briefs/" - "Select from saved briefs"
+  2. "Use template" - "Start with a brief template"
+  3. "Paste directly" - "Paste brief text directly"
+  4. "Interactive extraction" - "Let me ask you questions to extract the concept"
+```
+
+**Based on choice**:
+
+**Choice 1 (Load from concepts/briefs/)**:
+- Scan `concepts/briefs/` directory for .md files
+- Present list via AskUserQuestion
+- Read selected brief
+
+**Choice 2 (Use template)**:
+- Scan `concepts/templates/` directory
+- Present templates via AskUserQuestion:
+  - standard-brief.md
+  - metaphor-brief.md
+  - challenge-brief.md
+- Read template and show to user for filling in
+- Save completed brief to `concepts/briefs/{slug}-brief.md`
+
+**Choice 3 (Paste directly)**:
+- Accept multi-line text input
+- Save to `concepts/briefs/{slug}-brief.md`
+
+**Choice 4 (Interactive extraction)**:
+- Act as interrogator immediately with questions
+- Create brief from responses
+- Save to `concepts/briefs/{slug}-brief.md`
 
 ### Question 3: Workflow Mode
+
+**Action**: Use AskUserQuestion to present workflow mode
+
 ```
-⚙️ How should I run production?
-
-1. Fully Automated - Run all stages, pause only for quality gate failures
-2. Interactive - Pause after each stage for your review
-3. Partial - Run specific stages only
-
-> Choice (1-3):
+Use AskUserQuestion with:
+- question: "How should I run the production workflow?"
+- header: "Mode"
+- multiSelect: false
+- options:
+  1. "Fully Automated" - "Run all stages, pause only for quality gate failures"
+  2. "Interactive" - "Pause after each stage for your review and approval"
+  3. "Partial" - "Run specific stages only (advanced)"
 ```
 
-**Record choices** and proceed based on selection.
+**Record all choices** in state and proceed with production workflow.
 
 ## Production Workflow Stages
 

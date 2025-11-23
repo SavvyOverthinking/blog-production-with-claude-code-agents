@@ -13,8 +13,10 @@ published/
 working/*
 !working/.gitkeep
 
-# Concepts directory (personal article briefs)
-concepts/
+# Concepts directory (personal article briefs - keep templates)
+concepts/briefs/
+!concepts/templates/
+!concepts/.gitkeep
 
 # Python
 __pycache__/

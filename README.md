@@ -51,7 +51,29 @@ Edit `my-voice/my-voice.md` to refine:
 - Writing patterns
 - **"What to AVOID"** section (critical for quality)
 
-### 4. Start Production
+### 4. Create Your Brief (Optional)
+
+Choose a template and fill it in:
+
+```bash
+# Copy a template
+cp concepts/templates/standard-brief.md concepts/briefs/my-topic-brief.md
+
+# Or use metaphor-driven template
+cp concepts/templates/metaphor-brief.md concepts/briefs/my-topic-brief.md
+
+# Or challenge-based template
+cp concepts/templates/challenge-brief.md concepts/briefs/my-topic-brief.md
+
+# Edit with your concept
+```
+
+**Available Templates**:
+- `standard-brief.md` - General article structure
+- `metaphor-brief.md` - Metaphor-driven narrative
+- `challenge-brief.md` - Problem/solution based
+
+### 5. Start Production
 
 In Claude Code:
 
@@ -60,10 +82,15 @@ In Claude Code:
 ```
 
 The orchestrator will:
-1. Ask which voice to use
-2. Request your article concept
-3. Run complete production workflow
-4. Deliver publication-ready article
+1. **Voice Selection** - Interactive picker showing available profiles
+2. **Brief Input** - Choose from:
+   - Load saved brief from `concepts/briefs/`
+   - Use a template (standard/metaphor/challenge)
+   - Paste brief directly
+   - Interactive extraction (Q&A mode)
+3. **Mode Selection** - Automated / Interactive / Partial
+4. Run complete production workflow
+5. Deliver publication-ready article
 
 ## System Architecture
 
@@ -102,13 +129,13 @@ Published Article + Complete Archive
 
 ## Usage Examples
 
-### Full Production
+### Full Production with Template
 
 ```
 @orchestrator start
 
-> Which voice? my-blog-voice
-> Brief: [paste your concept]
+> Voice: [Select from interactive picker]
+> Brief: Use template → standard-brief.md
 > Mode: Automated
 
 [System runs complete workflow]
@@ -116,20 +143,40 @@ Published Article + Complete Archive
 ✅ Published: published/your-article.md
 ```
 
+### Quick Production (Paste Brief)
+
+```
+@orchestrator start
+
+> Voice: [Select from interactive picker]
+> Brief: Paste directly → [your concept text]
+> Mode: Automated
+
+[System runs complete workflow]
+```
+
 ### Interactive Mode
 
 ```
 @orchestrator start
 
+> Voice: [Select from interactive picker]
+> Brief: Load from concepts/briefs/ → my-topic-brief.md
 > Mode: Interactive
 
-[Pause after each stage for review]
+[Pause after each stage for review and approval]
 ```
 
 ### Resume In-Progress
 
 ```
 @orchestrator resume article-slug
+```
+
+### Check Status
+
+```
+@orchestrator status
 ```
 
 ## Voice Extraction
@@ -185,13 +232,22 @@ Verifies:
 ## File Organization
 
 ```
+.claude/                     # Claude Code configuration
+└── commands/
+    └── orchestrator.md      # @orchestrator slash command
+
 my-voice/                    # Your voice profiles
 ├── blog-voice.md
 └── examples/
     └── blog-voice/
 
-concepts/                    # Article briefs
-└── topic-brief.md
+concepts/                    # Article briefs and templates
+├── templates/
+│   ├── standard-brief.md    # General article template
+│   ├── metaphor-brief.md    # Metaphor-driven template
+│   └── challenge-brief.md   # Challenge-based template
+└── briefs/
+    └── topic-brief.md       # Your saved briefs
 
 working/                     # Active production
 ├── interrogation-topic.md
@@ -245,9 +301,17 @@ Start with `voice-templates/generic.md` for a blank template.
 - Add specific signature phrases
 - Test with a draft before full production
 
+### For Brief Creation
+- **Use templates** - Start with standard/metaphor/challenge template
+- **Be specific** - More context = better output
+- **Include examples** - Real scenarios make stronger articles
+- **Voice target** - Specify which voice profile to use in brief
+- **Save briefs** - Keep in `concepts/briefs/` for reuse and reference
+
 ### For Production
-- Provide detailed concepts (more context = better output)
-- Use interactive mode first time
+- **First time**: Use interactive mode to see each stage
+- **Template workflow**: Copy template → fill in → save to briefs/ → @orchestrator start
+- **Quick workflow**: @orchestrator start → paste directly
 - Review quality gate reports when they fail
 - Don't compromise voice for SEO
 

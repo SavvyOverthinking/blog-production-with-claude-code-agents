@@ -4,7 +4,10 @@
       "Bash(ls -la \"C:\\Users\\hamak\\github\\BlogProductionSystem\\agents\"\" 2>/dev/null || ls -la /c/Users/hamak/github/BlogProductionSystem/agents/ 2>/dev/null || dir \"C:UsershamakgithubBlogProductionSystemagents\"\")",
       "Bash(dir:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(test:*)",
+      "Bash(find:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

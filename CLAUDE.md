@@ -135,7 +135,11 @@ Main coordinator that embodies each agent role sequentially:
 
 ```
 BlogProductionSystem/
-├── agents/                           # Agent role definitions
+├── .claude/                         # Claude Code configuration
+│   └── commands/
+│       └── orchestrator.md          # @orchestrator slash command
+│
+├── agents/                          # Agent role definitions
 │   ├── orchestrator.md              # Main coordinator
 │   ├── production-manager.md        # Entry point/router
 │   ├── interrogator.md              # Knowledge extraction
@@ -158,8 +162,13 @@ BlogProductionSystem/
 │   └── examples/
 │       └── {voice-name}/*.md        # Example articles
 │
-├── concepts/                        # Article briefs
-│   └── {topic}-brief.md
+├── concepts/                        # Article briefs and templates
+│   ├── templates/                   # Brief templates
+│   │   ├── standard-brief.md        # General article template
+│   │   ├── metaphor-brief.md        # Metaphor-driven template
+│   │   └── challenge-brief.md       # Challenge-based template
+│   └── briefs/                      # Saved article briefs
+│       └── {topic-slug}-brief.md
 │
 ├── working/                         # Active production workspace
 │   ├── .state-{slug}.json           # Production state (for resume)
@@ -195,10 +204,14 @@ BlogProductionSystem/
 ```
 User: "@orchestrator start"
 
-Orchestrator:
-1. Which voice? [lists available]
-2. Provide brief [accepts input]
-3. Mode? [automated/interactive/partial]
+Orchestrator uses AskUserQuestion for setup:
+1. Voice Selection - Interactive picker showing available voice profiles
+2. Brief Input - Choose from:
+   - Load from concepts/briefs/ (saved briefs)
+   - Use template (standard/metaphor/challenge)
+   - Paste directly
+   - Interactive extraction
+3. Mode Selection - Automated/Interactive/Partial
 
 Then runs complete workflow:
 - Interrogation
@@ -216,6 +229,26 @@ Output:
 - archive/{slug}/[all artifacts]
 - published/PRODUCTION-SUMMARY-{SLUG}.md
 ```
+
+### Using Brief Templates
+
+**Standard Article**:
+1. Copy `concepts/templates/standard-brief.md`
+2. Fill in sections
+3. Save to `concepts/briefs/{topic-slug}-brief.md`
+4. Run `@orchestrator start` and select "Load from concepts/briefs/"
+
+**Metaphor-Driven Article**:
+1. Copy `concepts/templates/metaphor-brief.md`
+2. Define core metaphor and mapping
+3. Save to `concepts/briefs/{topic-slug}-brief.md`
+4. Structure-architect will use metaphor as foundation
+
+**Challenge-Based Article**:
+1. Copy `concepts/templates/challenge-brief.md`
+2. Describe challenge, failed approaches, solution
+3. Save to `concepts/briefs/{topic-slug}-brief.md`
+4. Structure-architect will design challenge → solution flow
 
 ### Voice Extraction Only
 
