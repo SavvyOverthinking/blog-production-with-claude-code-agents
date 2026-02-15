@@ -4,34 +4,68 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Purpose
 
-This is a **blog production system** built on Claude Code agent definitions. It transforms concepts into publication-ready blog posts through an orchestrated multi-agent workflow while maintaining authentic voice.
+This is a **blog production system** built on Claude Code subagents. It transforms concepts into publication-ready blog posts through an orchestrated multi-agent workflow while maintaining authentic voice.
 
-## Critical Architecture: Agents as Roles, Not Subprocesses
+## Architecture: Subagents via Task Tool
 
-**IMPORTANT**: The agent files in `agents/` are **role definitions for the orchestrator to embody**, not separate Task tool subagents.
+**IMPORTANT**: The blog production agents are defined as proper Claude Code subagents in `.claude/agents/` with YAML frontmatter. The orchestrator invokes them using the **Task tool**.
 
-When working with this system:
-- **DO NOT** invoke agents using `Task` tool with subagent_type like "research-lead" or "voice-writer"
-- **INSTEAD**: The orchestrator reads each agent definition and **embodies that role**
-- **THEN**: Produces the outputs described in that agent's workflow
-- **FINALLY**: Returns to orchestrator role for next stage
+### Subagent Locations
 
-### How Agents Work
+Blog production subagents are included at the **project level** (`.claude/agents/`), so they work automatically when you clone this repo:
+
+- `.claude/agents/interrogator.md`
+- `.claude/agents/research-lead.md`
+- `.claude/agents/structure-architect.md`
+- `.claude/agents/voice-writer.md`
+- `.claude/agents/humanizer.md`
+- `.claude/agents/tone-police.md`
+- `.claude/agents/fact-checker.md`
+- `.claude/agents/seo-optimizer.md`
+- `.claude/agents/editorial-director.md`
+- `.claude/agents/production-manager.md`
+
+To make agents available across all projects, copy them to `~/.claude/agents/`.
+
+### How Subagent Invocation Works
 
 ```
 User: "@orchestrator start"
 
 Orchestrator workflow:
 1. Asks user for voice, brief, mode
-2. Reads agents/interrogator.md
-3. BECOMES the interrogator (embodies the role)
-4. Executes interrogator's workflow
-5. Saves output to working/interrogation-{slug}.md
-6. Returns to orchestrator role
-7. Reads agents/research-lead.md
-8. BECOMES the research-lead
-9. Executes research workflow
-10. ... continues through all stages
+2. Uses Task tool: subagent_type="interrogator"
+3. Interrogator runs in its own context window
+4. Returns output: working/interrogation-{slug}.md
+5. Uses Task tool: subagent_type="research-lead"
+6. Research-lead runs in its own context window
+7. Returns output: working/research-validation-{slug}.md
+8. ... continues through all stages
+```
+
+### Subagent File Format
+
+Each subagent has YAML frontmatter specifying:
+- `name`: Subagent identifier (e.g., "interrogator")
+- `description`: When to use this subagent (Claude uses this for auto-delegation)
+- `model`: Which model to use (defaults to claude-sonnet-4-5)
+- `allowed-tools`: Tool restrictions for this subagent
+
+Example:
+```yaml
+---
+name: interrogator
+description: MUST BE USED for extracting knowledge from article briefs...
+model: claude-sonnet-4-20250514
+allowed-tools:
+  - Read
+  - Write
+  - Glob
+  - Grep
+---
+
+# Interrogator Agent
+[agent instructions...]
 ```
 
 ## System Requirements
@@ -67,19 +101,19 @@ This creates:
 
 ### Production Orchestrator (`@orchestrator start`)
 
-Main coordinator that embodies each agent role sequentially:
+Main coordinator that invokes subagents via Task tool:
 
 1. **interrogator** - Extracts author's knowledge from brief
 2. **research-lead** - Validates with credible sources
 3. **structure-architect** - Designs narrative architecture
 4. **voice-writer** - Creates draft in authentic voice
-5. **tone-police** - Quality gate: voice consistency (must score 9+/10)
-6. **fact-checker** - Quality gate: citation verification (must pass)
-7. **seo-optimizer** - Optimizes discoverability without breaking voice
-8. **final-polish** - Applies safe optimizations
-9. **archive-and-publish** - Completes production
+5. **humanizer** - Reviews for AI-writing patterns, produces flagged report (no rewrites)
+6. **tone-police** - Quality gate: voice consistency (must score 9+/10)
+7. **fact-checker** - Quality gate: citation verification (must pass)
+8. **seo-optimizer** - Optimizes discoverability without breaking voice
+9. **Final assembly** - Creates published version
 
-### Agent Roles
+### Subagent Roles
 
 **interrogator** - Knowledge extraction
 - Probes brief for insights
@@ -105,6 +139,14 @@ Main coordinator that embodies each agent role sequentially:
 - Integrates research naturally
 - Maintains voice throughout
 - Output: `working/draft-{slug}-v1.md`
+
+**humanizer** - AI pattern review (report only)
+- Scans for 24 AI-writing patterns from Wikipedia's AI writing guide
+- Flags with severity: 🔴 Definitely fix / 🟡 Worth considering / 🟢 Cosmetic
+- Suggests alternatives but NEVER rewrites the draft
+- User reviews report and decides what to change
+- Report: `working/humanizer-report-{slug}.md`
+- No draft output — original `draft-{slug}-v1.md` proceeds unchanged
 
 **tone-police** - Voice consistency check
 - Scans for AI-tells
@@ -136,20 +178,10 @@ Main coordinator that embodies each agent role sequentially:
 ```
 BlogProductionSystem/
 ├── .claude/                         # Claude Code configuration
-│   └── commands/
-│       └── orchestrator.md          # @orchestrator slash command
-│
-├── agents/                          # Agent role definitions
-│   ├── orchestrator.md              # Main coordinator
-│   ├── production-manager.md        # Entry point/router
-│   ├── interrogator.md              # Knowledge extraction
-│   ├── research-lead.md             # Source validation
-│   ├── structure-architect.md       # Narrative design
-│   ├── voice-writer.md              # Draft creation
-│   ├── tone-police.md               # Voice check (quality gate)
-│   ├── fact-checker.md              # Citation verification (quality gate)
-│   ├── seo-optimizer.md             # SEO without voice compromise
-│   └── editorial-director.md        # Optional quality review
+│   ├── commands/
+│   │   └── orchestrator.md          # @orchestrator slash command
+│   └── agents/                      # Subagent definitions
+│       └── *.md                     # (10 production agents)
 │
 ├── voice_extractor/                 # Python voice extraction tool
 │   ├── main.py                      # CLI entry point
@@ -164,35 +196,19 @@ BlogProductionSystem/
 │
 ├── concepts/                        # Article briefs and templates
 │   ├── templates/                   # Brief templates
-│   │   ├── standard-brief.md        # General article template
-│   │   ├── metaphor-brief.md        # Metaphor-driven template
-│   │   └── challenge-brief.md       # Challenge-based template
 │   └── briefs/                      # Saved article briefs
-│       └── {topic-slug}-brief.md
 │
 ├── working/                         # Active production workspace
 │   ├── .state-{slug}.json           # Production state (for resume)
-│   ├── interrogation-{slug}.md
-│   ├── research-validation-{slug}.md
-│   ├── structure-blueprint-{slug}.md
-│   ├── draft-{slug}-v1.md
-│   ├── tone-police-report-{slug}.md
-│   ├── fact-check-report-{slug}.md
-│   ├── seo-optimization-{slug}.md
-│   └── {slug}-final.md
+│   └── [stage outputs]
 │
 ├── archive/                         # Completed production artifacts
 │   └── {slug}/
-│       └── [all working files]
 │
 ├── published/                       # Final articles
 │   ├── {slug}.md
 │   └── PRODUCTION-SUMMARY-{SLUG}.md
 │
-├── voice-templates/                 # Starting voice templates
-│   └── generic.md
-│
-├── .gitignore
 ├── CLAUDE.md                        # This file
 └── README.md                        # User documentation
 ```
@@ -204,62 +220,27 @@ BlogProductionSystem/
 ```
 User: "@orchestrator start"
 
-Orchestrator uses AskUserQuestion for setup:
-1. Voice Selection - Interactive picker showing available voice profiles
-2. Brief Input - Choose from:
-   - Load from concepts/briefs/ (saved briefs)
-   - Use template (standard/metaphor/challenge)
-   - Paste directly
-   - Interactive extraction
+Orchestrator:
+1. Voice Selection - Interactive picker
+2. Brief Input - Load/template/paste
 3. Mode Selection - Automated/Interactive/Partial
 
-Then runs complete workflow:
-- Interrogation
-- Research
-- Structure
-- Draft
-- Tone check (quality gate)
-- Fact check (quality gate)
-- SEO optimization
-- Final polish
-- Publish & archive
+Then invokes subagents via Task tool:
+- Task(interrogator) → extraction
+- Task(research-lead) → validation
+- Task(structure-architect) → blueprint
+- Task(voice-writer) → draft
+- Task(humanizer) → AI pattern review report (user decides fixes)
+- Task(tone-police) → quality gate
+- Task(fact-checker) → quality gate
+- Task(seo-optimizer) → optimization
+- Final assembly → publish
 
 Output:
 - published/{slug}.md
 - archive/{slug}/[all artifacts]
 - published/PRODUCTION-SUMMARY-{SLUG}.md
 ```
-
-### Using Brief Templates
-
-**Standard Article**:
-1. Copy `concepts/templates/standard-brief.md`
-2. Fill in sections
-3. Save to `concepts/briefs/{topic-slug}-brief.md`
-4. Run `@orchestrator start` and select "Load from concepts/briefs/"
-
-**Metaphor-Driven Article**:
-1. Copy `concepts/templates/metaphor-brief.md`
-2. Define core metaphor and mapping
-3. Save to `concepts/briefs/{topic-slug}-brief.md`
-4. Structure-architect will use metaphor as foundation
-
-**Challenge-Based Article**:
-1. Copy `concepts/templates/challenge-brief.md`
-2. Describe challenge, failed approaches, solution
-3. Save to `concepts/briefs/{topic-slug}-brief.md`
-4. Structure-architect will design challenge → solution flow
-
-### Voice Extraction Only
-
-```bash
-cd voice_extractor
-python main.py https://target-blog.com --name target-voice --articles 10 --save-examples
-```
-
-Output:
-- `my-voice/target-voice.md`
-- `my-voice/examples/target-voice/*.md`
 
 ### Resume In-Progress Production
 
@@ -307,114 +288,48 @@ need, demonstrating that user satisfaction doesn't equal viability."
 ### Citation Format
 - **Always use inline links**: `[source description](url)`
 - **Never use footnotes** or numbered citations
-- **Format**: "Organization research reveals..." or "Data from Source shows..."
 
 ### AI-Tells to AVOID
 - "In today's [X] landscape..."
 - "It's important to note that..."
 - "Leverage" as verb, "synergy", "best practices"
 - "Furthermore", "Moreover" (excessive use)
-- Starting sections with "Now let's..."
 
-## Production Best Practices
-
-### For Orchestrator
-
-**When embodying an agent**:
-1. Read the agent's .md file completely
-2. Read all prerequisite files it requires
-3. Become that agent - think and act as defined
-4. Execute the workflow exactly as specified
-5. Produce outputs in exact format required
-6. Save to working/ directory
-7. Return to orchestrator role
-
-**Quality gate enforcement**:
-- NEVER skip quality gates
-- If tone-police fails (< 9.0), must address before proceeding
-- If fact-checker fails (critical issues), must fix before proceeding
-- Voice authenticity > convenience
-
-**Interactive mode checkpoints**:
-- Pause after each major stage
-- Show preview of output
-- Ask user to approve/revise/continue
-- Respect user's pace
-
-### For Voice Extraction
-
-**Best practices**:
-- Analyze 8-12 articles minimum
-- Choose articles representative of target voice
-- Review and edit extracted profile (especially "What to AVOID")
-- Add specific examples to voice markers
-- Test with a draft before full production
-
-### Common Pitfalls to Avoid
-
-1. **Trying to use Task tool for blog agents** - Agents are roles, not subprocesses
-2. **Skipping voice profile check** - Orchestrator must verify profile exists
-3. **Leading with research** - Always observation first, research validates
-4. **Compromising voice for SEO** - Voice authenticity > search optimization
-5. **Batch completing stages** - Complete each stage fully before next
-6. **Ignoring quality gate failures** - Must address failures, cannot skip
-
-## Working with Orchestrator
-
-### Starting Production
-
-```
-User: "Create a blog about product-market fit challenges"
-
-production-manager routes to:
-
-@orchestrator start
-
-Orchestrator handles complete workflow
-```
-
-### Commands
+## Commands
 
 - `@orchestrator start` - New production
 - `@orchestrator resume {slug}` - Resume in-progress
 - `@orchestrator status` - Show all productions
-- `@production-manager` - Entry point / general questions
+
+## Subagent Installation
+
+The blog production subagents are included in `.claude/agents/` and work automatically at the project level. To make them available across all projects, copy them to `~/.claude/agents/`.
+
+Required subagents:
+- interrogator.md
+- research-lead.md
+- structure-architect.md
+- voice-writer.md
+- humanizer.md
+- tone-police.md
+- fact-checker.md
+- seo-optimizer.md
+- editorial-director.md
+- production-manager.md
 
 ## Technical Notes
 
-### No External Dependencies for Agents
-- Agent workflows use only Claude Code built-in tools
-- File operations via Read/Write tools
-- Web research via WebSearch/WebFetch tools
-- No build process, no tests to run
+### Subagent Context Isolation
+Each subagent runs in its own context window, which:
+- Prevents context pollution between stages
+- Allows specialized tool restrictions per agent
+- Returns only relevant results to orchestrator
 
 ### Python Voice Extractor
 **Dependencies**: See `voice_extractor/requirements.txt`
-- anthropic (Claude API)
-- beautifulsoup4 (web scraping)
-- requests (HTTP)
-- python-dotenv (env vars)
-
 **Environment**: Requires `ANTHROPIC_API_KEY` environment variable
-
-## Key Differences from Standard Blog Writing
-
-1. **Voice Profile Drives Everything** - Not style guides or best practices
-2. **Research Supports, Never Leads** - Observation → Validation pattern
-3. **Metaphors Are Structural** - Not decorative, they organize entire pieces
-4. **Quality Gates Are Strict** - Must pass to publish
-5. **SEO Never Compromises Voice** - Authenticity > findability
-6. **Agents Are Roles** - Orchestrator embodies them, doesn't invoke via Task
-
-## Support
-
-For issues or questions:
-- Review agent definitions in `agents/` directory
-- Check README.md for user-facing documentation
-- Verify voice profile exists and is complete
-- Ensure ANTHROPIC_API_KEY is set for voice extraction
 
 ## Version
 
-System: Blog Production v1.0
+System: Blog Production v2.0 (Task Tool Architecture)
 Claude Model: Sonnet 4.5 (claude-sonnet-4-5-20250929)

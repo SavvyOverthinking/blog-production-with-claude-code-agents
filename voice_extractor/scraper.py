@@ -38,6 +38,49 @@ class BlogScraper:
 
     def _discover_articles(self):
         """Find article URLs on the blog"""
+        # Try HTML scraping first
+        urls = self._discover_from_html()
+
+        # If no URLs found, try RSS feed as fallback
+        if not urls:
+            print("  No links found in HTML, trying RSS feed...")
+            urls = self._discover_from_rss()
+
+        return urls[:self.max_articles * 2]
+
+    def _discover_from_rss(self):
+        """Try to find articles via RSS feed"""
+        parsed = urlparse(self.base_url)
+        feed_urls = [
+            urljoin(self.base_url, '/feed'),
+            urljoin(self.base_url, '/rss'),
+            urljoin(self.base_url, '/feed.xml'),
+            urljoin(self.base_url, '/rss.xml'),
+            urljoin(self.base_url, '/atom.xml'),
+        ]
+
+        for feed_url in feed_urls:
+            try:
+                response = requests.get(feed_url, headers=HEADERS, timeout=10)
+                if response.status_code == 200 and ('<rss' in response.text[:500] or '<feed' in response.text[:500] or '<item>' in response.text[:2000]):
+                    soup = BeautifulSoup(response.content, 'xml')
+                    urls = []
+                    for item in soup.find_all('item'):
+                        link = item.find('link')
+                        if link:
+                            url = link.get_text().strip()
+                            if url:
+                                urls.append(url)
+                    if urls:
+                        print(f"  Found {len(urls)} articles via RSS feed")
+                        return urls
+            except Exception:
+                continue
+
+        return []
+
+    def _discover_from_html(self):
+        """Find article URLs by scraping HTML links"""
         try:
             response = requests.get(self.base_url, headers=HEADERS, timeout=10)
             response.raise_for_status()
@@ -56,12 +99,12 @@ class BlogScraper:
                     abs_url != self.base_url and
                     abs_url not in urls):
                     # Basic heuristic: looks like an article
-                    if any(pattern in abs_url for pattern in ['/post/', '/blog/', '/article/', '/@']):
+                    if any(pattern in abs_url for pattern in ['/post/', '/blog/', '/article/', '/@', '/p/']):
                         urls.append(abs_url)
                     elif abs_url.count('/') >= 4:  # Likely content, not homepage
                         urls.append(abs_url)
 
-            return urls[:self.max_articles * 2]  # Get extras in case some fail
+            return urls
 
         except Exception as e:
             print(f"Error discovering articles: {e}")

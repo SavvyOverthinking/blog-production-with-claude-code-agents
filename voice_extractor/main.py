@@ -10,6 +10,7 @@ Example:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -20,6 +21,92 @@ except ImportError:
     print("Error: Could not import scraper/analyzer modules")
     print("Make sure you're running from the voice_extractor directory")
     sys.exit(1)
+
+def _save_articles_for_claude_code(articles, voice_name: str) -> Path:
+    """Save scraped articles to a combined file for manual analysis with Claude Code."""
+    output_dir = Path("../working")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"scraped-articles-{voice_name}.md"
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(f"# Scraped Articles for Voice Profile: {voice_name}\n\n")
+        f.write(f"Total articles: {len(articles)}\n\n")
+        f.write("---\n\n")
+        for i, article in enumerate(articles, 1):
+            f.write(f"## Article {i}: {article['title']}\n\n")
+            f.write(f"{article['content']}\n\n")
+            f.write("---\n\n")
+
+    return output_path
+
+
+def _prompt_for_api_key(articles, voice_name: str):
+    """
+    Present options when ANTHROPIC_API_KEY is not set.
+
+    Returns the API key string if the user provides one (option 1),
+    or None if the user chose option 2 or 3 (both exit the workflow).
+    """
+    print(f"{'='*60}")
+    print("ANTHROPIC_API_KEY is not set")
+    print(f"{'='*60}\n")
+    print("The voice analyzer requires an Anthropic API key to call")
+    print("Claude for voice profile generation.\n")
+    print("Choose an option:\n")
+    print("  1) Enter your API key now")
+    print("  2) Set it as an environment variable (show instructions)")
+    print("  3) Skip analysis and use Claude Code instead")
+    print()
+
+    while True:
+        choice = input("Enter choice [1/2/3]: ").strip()
+
+        if choice == "1":
+            print()
+            api_key = input("Paste your Anthropic API key: ").strip()
+            if not api_key:
+                print("\n❌ No key entered. Aborting.\n")
+                sys.exit(1)
+            print()
+            return api_key
+
+        elif choice == "2":
+            print(f"\n{'='*60}")
+            print("Set your API key, then re-run this command:")
+            print(f"{'='*60}\n")
+            print("  Linux / macOS:")
+            print("    export ANTHROPIC_API_KEY='sk-ant-...'")
+            print()
+            print("  Windows (Command Prompt):")
+            print("    set ANTHROPIC_API_KEY=sk-ant-...")
+            print()
+            print("  Windows (PowerShell):")
+            print('    $env:ANTHROPIC_API_KEY="sk-ant-..."')
+            print()
+            print("Then re-run:")
+            print(f"    python main.py <url> --name {voice_name}\n")
+            return None
+
+        elif choice == "3":
+            print("\n💾 Saving scraped articles for Claude Code analysis...\n")
+            output_path = _save_articles_for_claude_code(articles, voice_name)
+            print(f"✅ Articles saved to: {output_path}\n")
+            print(f"{'='*60}")
+            print("How to generate the voice profile with Claude Code:")
+            print(f"{'='*60}\n")
+            print("  1. Open Claude Code in the BlogProductionSystem directory")
+            print(f"  2. Run:  @orchestrator start")
+            print(f"     Or ask Claude Code directly:")
+            print(f'     "Read {output_path} and generate a voice profile')
+            print(f'      for \'{voice_name}\'. Save it to my-voice/{voice_name}.md"')
+            print()
+            print("  Claude Code will analyze the articles and create the")
+            print("  voice profile without needing an API key.\n")
+            return None
+
+        else:
+            print("  Invalid choice. Please enter 1, 2, or 3.\n")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -74,11 +161,21 @@ Examples:
         scraper.save_examples(articles, examples_dir)
         print(f"✅ Examples saved to: {examples_dir}\n")
 
+    # Check for API key before analysis
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+
+    if not api_key:
+        api_key = _prompt_for_api_key(articles, args.name)
+        if api_key is None:
+            # User chose option 2 (set env var) or option 3 (use Claude Code)
+            # Both paths handle their own output and exit
+            return
+
     # Analyze voice
     print("🤖 Analyzing voice patterns with Claude Sonnet 4.5...")
     print("   (This may take 1-2 minutes...)\n")
 
-    analyzer = VoiceAnalyzer()
+    analyzer = VoiceAnalyzer(api_key=api_key)
 
     try:
         profile = analyzer.analyze(articles, voice_name=args.name)

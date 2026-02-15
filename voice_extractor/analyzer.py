@@ -8,10 +8,13 @@ import anthropic
 class VoiceAnalyzer:
     """Analyze articles to extract voice profile"""
 
-    def __init__(self):
-        self.api_key = os.getenv("ANTHROPIC_API_KEY")
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+            raise ValueError(
+                "No API key provided. Pass api_key to VoiceAnalyzer() "
+                "or set the ANTHROPIC_API_KEY environment variable."
+            )
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
         self.model = "claude-sonnet-4-5-20250929"  # Sonnet 4.5

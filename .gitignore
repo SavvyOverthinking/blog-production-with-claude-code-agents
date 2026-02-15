@@ -18,8 +18,15 @@ working/*
 
 # Concepts directory (personal article briefs - keep templates)
 concepts/briefs/
+concepts/*.md
 !concepts/templates/
 !concepts/.gitkeep
+
+# Personal voice templates
+voice-templates/
+
+# Personal production run scripts
+run-*.md
 
 # Python
 __pycache__/
@@ -40,6 +47,7 @@ ENV/
 .DS_Store
 Thumbs.db
 desktop.ini
+nul
 
 # Editor files
 .vscode/
